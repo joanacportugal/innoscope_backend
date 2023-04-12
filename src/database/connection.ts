@@ -2,7 +2,7 @@ import knex from "knex";
 require("dotenv").config();
 
 const db = knex({
-  client: "sqlite3",
+  client: "mysql",
   connection: {
     host: process.env.DB_HOST,
     port: 3306,
