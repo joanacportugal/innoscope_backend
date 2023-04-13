@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
-import UserRecord from "../utils/interfaces/UserRecord";
-import { createUser, getOneUserByEmail } from "../utils/queries/UserQueries";
+import db from "../database/connection";
+import { getLoginErrors } from "../utils/errorValidations/auth";
 require("dotenv").config();
 
 class AuthController {
@@ -25,29 +25,21 @@ class AuthController {
   }
 
   async login(req: Request, res: Response) {
-    //validations
-    if (!req.body.email || !req.body.name) {
-      return res.status(400).json({ error: "Please provide email and name!" });
+    // validate body
+    let error = getLoginErrors(req.body.email, req.body.name);
+    if (error) {
+      return res.status(400).json({ error });
     }
-    const emailParts = req.body.email.split("@");
 
-    if (
-      (emailParts.length != 2 && emailParts[0] == "") ||
-      emailParts[1] == ""
-    ) {
-      return res.status(400).json({ error: "Please provide a valid email!" });
-    }
-    if (emailParts[1] != "devscope.net") {
-      return res
-        .status(400)
-        .json({ error: "Please provide a DevScope email!" });
-    }
     try {
-      const val: any = await getOneUserByEmail<UserRecord>(req.body.email);
+      const val: any = await db("Users").where("user_email", req.body.email);
       let loggedUserId: number;
 
       if (!val) {
-        const user = await createUser<number[]>(req.body.email, req.body.name);
+        const user: number[] = await db("Users").insert({
+          user_email: req.body.email,
+          user_name: req.body.name,
+        });
         loggedUserId = user ? user[0] : 0;
       } else {
         loggedUserId = val.user_id;

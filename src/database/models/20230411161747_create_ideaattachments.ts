@@ -1,7 +1,7 @@
 import { Knex } from "knex";
 
 export async function up(knex: Knex): Promise<void> {
-  return knex.schema.createTable("Idea_Attachnents", (table) => {
+  return knex.schema.createTable("Idea_Attachments", (table) => {
     table.increments("attachment_id").primary();
     table.text("attachment_file").notNullable();
     table.boolean("attachment_isPublic").notNullable().defaultTo(false);
@@ -13,5 +13,5 @@ export async function up(knex: Knex): Promise<void> {
 }
 
 export async function down(knex: Knex): Promise<void> {
-  return knex.schema.dropTable("Idea_Attachnents");
+  return knex.schema.dropTable("Idea_Attachments");
 }

@@ -21,7 +21,7 @@ export async function up(knex: Knex): Promise<void> {
       ])
       .notNullable()
       .defaultTo("New");
-    table.text("idea_details").notNullable();
+    table.text("idea_details").nullable();
   });
 }
 
