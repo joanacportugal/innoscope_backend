@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import db from "../database/connection";
-import { getLoginErrors } from "../utils/errorValidations/auth";
 require("dotenv").config();
 
 class AuthController {
@@ -25,12 +24,6 @@ class AuthController {
   }
 
   async login(req: Request, res: Response) {
-    // validate body
-    let error = getLoginErrors(req.body.email, req.body.name);
-    if (error) {
-      return res.status(400).json({ error });
-    }
-
     try {
       const val: any = await db("Users").where("user_email", req.body.email);
       let loggedUserId: number;

@@ -1,8 +1,6 @@
 import { Request, Response } from "express";
 
 import IdeaRecord from "../interfaces/IdeaRecord";
-import { getIdeaCreationErrors } from "../utils/errorValidations/user";
-
 import db from "../database/connection";
 
 class UserController {
@@ -19,11 +17,6 @@ class UserController {
       isAnon,
       details,
     } = req.body;
-    // validate body
-    let error = getIdeaCreationErrors(req.body);
-    if (error) {
-      return res.status(400).json({ error });
-    }
 
     try {
       // validate coauthors existence
@@ -60,14 +53,12 @@ class UserController {
             idea_details: details,
           };
           const idea = await trx("Ideas").insert(ideaItem);
-          if (coauthors) {
-            let list = coauthors
-              ? [req.details.loggedUserId, ...coauthors]
-              : [req.details.loggedUserId];
-            await trx("Idea_Author").insert(
-              list.map((user) => ({ user, idea: idea[0] }))
-            );
-          }
+          let list = coauthors
+            ? [req.details.loggedUserId, ...coauthors]
+            : [req.details.loggedUserId];
+          await trx("Idea_Author").insert(
+            list.map((user) => ({ user, idea: idea[0] }))
+          );
           if (technologies) {
             await trx("Idea_Technology").insert(
               technologies.map((technology: any) => ({
@@ -95,8 +86,58 @@ class UserController {
     }
   }
 
-  getAllUserIdeas(req: Request, res: Response) {
-    return res.status(200).send("ideas");
+  async getAllUserIdeas(req: any, res: Response) {
+    let per_page = req.query.per_page || 4;
+    let curr_page = req.query.curr_page || 1;
+    try {
+      const totalRows: any = await db("Ideas").count("* as count").first();
+      const offset = (curr_page < 1 ? curr_page : curr_page - 1) * per_page;
+      const last_page = Math.ceil(totalRows.count / per_page);
+      let pagination = {
+        total: totalRows.count,
+        per_page: per_page || 20,
+        curr_page: curr_page || 1,
+        prev_page: curr_page == 1 ? null : curr_page - 1,
+        next_page: curr_page == last_page ? null : curr_page + 1,
+        offset,
+        to: offset + per_page,
+        last_page,
+      };
+
+      const allIdeas = await db("Ideas")
+        .join("Idea_Author", "Ideas.idea_id", "=", "Idea_Author.idea")
+        .join("Categories", "Ideas.category", "=", "Categories.category_id")
+        .where("Idea_Author.user", req.details.loggedUserId)
+        .offset(pagination.offset)
+        .limit(pagination.per_page);
+      let ideas = [];
+
+      for (const ideaItem of allIdeas) {
+        const technologies = await db("Technologies").join(
+          "Idea_Technology",
+          "Technologies.technology_id",
+          "=",
+          "Idea_Technology.technology"
+        );
+        let item = {
+          id: ideaItem.idea_id,
+          title: ideaItem.idea_title,
+          description: ideaItem.idea_description,
+          category: ideaItem.category_name,
+          complexity: ideaItem.idea_complexity,
+          duration: ideaItem.idea_durationWeeks,
+          status: ideaItem.idea_status,
+          details: ideaItem.idea_details || "",
+          technologies: technologies.map((t) => t.technology_name),
+        };
+        ideas.push(item);
+      }
+      return res.status(200).json({ ideas, pagination });
+    } catch (err) {
+      return res.status(500).json({
+        error: "An error occurred. Try again!",
+      });
+    }
   }
 
   getOneUserIdea(req: Request, res: Response) {
